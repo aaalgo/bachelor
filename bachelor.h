@@ -144,10 +144,10 @@ namespace bachelor {
     class Batch: public BatchBase {
         vector<char> data;
     public:
-        Batch (Config const &c): Batch(c), data(c.batch_size()) {
+        Batch (Config const &c): BatchBase(c), data(c.batch_size()) {
             buffer = &data[0];
         }
-        Batch (Config const &c, void *data): Batch(c) {
+        Batch (Config const &c, void *data): BatchBase(c) {
             buffer = data;
         }
         ~Batch () {
