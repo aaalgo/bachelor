@@ -1,12 +1,15 @@
 #ifndef AAALGO_BACHELOR
 #define AAALGO_BACHELOR
 
+#include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <boost/core/noncopyable.hpp>
 
 namespace bachelor {
 
+    using std::cerr;
+    using std::endl;
     using std::vector;
 
     enum Order {
@@ -20,6 +23,16 @@ namespace bachelor {
     // derivied class must also ensure that buffer is set to 0 before destruction
     // this is a safety measure
     class BatchBase: boost::noncopyable {
+        void check_next_ptr () const {
+            if (!next) {
+                cerr << "next is 0" << endl;
+                throw 0;
+            }
+            if (next >= end) {
+                cerr << "next > end, data corruption" << endl;
+                throw 0;
+            }
+        }
     public:
         struct Config {
             int batch;
@@ -41,19 +54,24 @@ namespace bachelor {
             }
         };
         BatchBase (Config const &c): conf(c), channel_size(conf.channel_size()), image_size(conf.image_size()), batch_size(conf.batch_size()), buffer(nullptr), end(nullptr), next(nullptr) {
-            reset();
         }
         ~BatchBase () {
-            if (buffer) throw 0;
+            if (buffer) {
+                cerr << "Batch class should set buffer to 0 upon destruction." << endl;
+                throw 0;
+            }
         }
         void reset () {
-            if (!buffer) throw 0;
+            if (!buffer) {
+                cerr << "data buffer is 0 upon reset" << endl;
+                throw 0;
+            }
             next = reinterpret_cast<char *>(buffer);
+            end = next + batch_size;
             cnt = 0;
         }
         void skip_next () {
-            if (!next) throw 0;
-            if (next >= end) throw 0;
+            check_next_ptr();
             next += image_size;
             ++cnt;
         }
@@ -83,6 +101,7 @@ namespace bachelor {
                     cv::cvtColor(tmp, stage2, CV_GRAY2BGR);
                 }
                 else {
+                    cerr << "cannot convert from " << tmp.channels() << " to " << conf.channels << " channels" << endl;
                     throw 0;
                 }
                 tmp = stage2;
@@ -102,11 +121,14 @@ namespace bachelor {
                 || (image.rows != conf.height)
                 || (image.channels() != conf.channels)
                 || (image.depth() != conf.depth)) {
+                cerr << "next image doesn't match batch shape" << endl;
                 throw 0;
             }
-            if (!next) throw 0;
-            if (next >= end) throw 0;
-            if (image.isContinuous()) throw 0;
+            check_next_ptr();
+            if (!image.isContinuous()) {
+                cerr << "image is not continuous" << endl;
+                throw 0;
+            }
             if (conf.order == NHWC || conf.channels == 1) {
                 memcpy(next, image.ptr<char const>(0), image_size);
                 next += image_size;
@@ -123,8 +145,8 @@ namespace bachelor {
             ++cnt;
         }
         void fill_0 () {
-            if (!next) throw 0;
             if (next >= end) return;
+            check_next_ptr();
             bzero(next, end-next);
         }
     protected:
@@ -139,16 +161,21 @@ namespace bachelor {
         cv::Mat stage1;
         cv::Mat stage2;
         cv::Mat stage3;
+
+        void set_buffer (void *data) {
+            buffer = data;
+            reset();
+        }
     };
 
     class Batch: public BatchBase {
         vector<char> data;
     public:
         Batch (Config const &c): BatchBase(c), data(c.batch_size()) {
-            buffer = &data[0];
+            set_buffer(&data[0]);
         }
         Batch (Config const &c, void *data): BatchBase(c) {
-            buffer = data;
+            set_buffer(data);
         }
         ~Batch () {
             buffer = nullptr;
@@ -169,6 +196,7 @@ namespace bachelor {
                 case CV_8U: return NPY_UINT8;
                 case CV_32F: return NPY_FLOAT32;
             }
+            cerr << "cannot convert cv type " << depth << " to npy type" << end;
             throw 0;
             return 0;
         }
@@ -188,7 +216,7 @@ namespace bachelor {
             }
             batch = PyArray_SimpleNew(4, dims, np_type(conf.depth));
             if (!batch) throw 0;
-            buffer = PyArray_DATA(batch);
+            set_buffer(PyArray_DATA(batch));
         }
 
         ~NumpyBatch () {
@@ -199,7 +227,10 @@ namespace bachelor {
             if (cnt > conf.batch) throw 0;
             if (cnt < conf.batch) {
                 dims[0] = cnt;
-                batch = PyArray_Resize((PyArrayObject *)batch, dims, 1, NPY_CORDER);
+                PyArray_Dims Dims;
+                Dims.ptr = dims;
+                Dims.len = 4;
+                batch = PyArray_Resize((PyArrayObject *)batch, &Dims, 1, NPY_CORDER);
             }
             PyObject *r = batch;
             batch = nullptr;
