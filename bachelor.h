@@ -230,7 +230,8 @@ namespace bachelor {
                 PyArray_Dims Dims;
                 Dims.ptr = dims;
                 Dims.len = 4;
-                batch = PyArray_Resize((PyArrayObject *)batch, &Dims, 1, NPY_CORDER);
+                PyObject *none = PyArray_Resize((PyArrayObject *)batch, &Dims, 1, NPY_CORDER);
+                CHECK(none);    // if successful should return None
             }
             PyObject *r = batch;
             batch = nullptr;
