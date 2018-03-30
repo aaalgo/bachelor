@@ -112,7 +112,7 @@ namespace bachelor {
                 }
                 tmp = stage2;
             }
-            if (conf.channels == 3 && colorspace == RGB) {
+            if (conf.channels == 3 && conf.colorspace == RGB) {
                 cv::cvtColor(tmp, tmp, CV_RGB2BGR);
             }
             if (tmp.depth() != conf.depth) {
