@@ -17,6 +17,11 @@ namespace bachelor {
         NCHW = 2
     };
 
+    enum ColorOrder {
+        BGR = 1,
+        RGB = 2
+    };
+
     // this is just a view
     // derived class has to setup buffer
     // so data can be copied.
@@ -41,7 +46,8 @@ namespace bachelor {
             int channels;
             int depth;           // as in opencv
             Order order;
-            Config (): batch(0), height(0), width(0), channels(3), depth(CV_32F), order(NHWC) {
+            ColorOrder color_order;
+            Config (): batch(0), height(0), width(0), channels(3), depth(CV_32F), order(NHWC), color_order(BGR) {
             }
             int channel_size () const {
                 return height * width * CV_ELEM_SIZE1(depth);
@@ -105,6 +111,9 @@ namespace bachelor {
                     throw 0;
                 }
                 tmp = stage2;
+            }
+            if (conf.channels == 3 && color_order== RGB) {
+                cv::cvtColor(tmp, tmp, CV_RGB2BGR);
             }
             if (tmp.depth() != conf.depth) {
                 tmp.convertTo(stage3, conf.depth);
