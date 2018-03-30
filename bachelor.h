@@ -17,7 +17,7 @@ namespace bachelor {
         NCHW = 2
     };
 
-    enum ColorOrder {
+    enum ColorSpace {
         BGR = 1,
         RGB = 2
     };
@@ -46,8 +46,8 @@ namespace bachelor {
             int channels;
             int depth;           // as in opencv
             Order order;
-            ColorOrder color_order;
-            Config (): batch(0), height(0), width(0), channels(3), depth(CV_32F), order(NHWC), color_order(BGR) {
+            ColorSpace colorspace;
+            Config (): batch(0), height(0), width(0), channels(3), depth(CV_32F), order(NHWC), colorspace(BGR) {
             }
             int channel_size () const {
                 return height * width * CV_ELEM_SIZE1(depth);
@@ -112,7 +112,7 @@ namespace bachelor {
                 }
                 tmp = stage2;
             }
-            if (conf.channels == 3 && color_order== RGB) {
+            if (conf.channels == 3 && colorspace == RGB) {
                 cv::cvtColor(tmp, tmp, CV_RGB2BGR);
             }
             if (tmp.depth() != conf.depth) {
