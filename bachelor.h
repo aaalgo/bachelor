@@ -78,6 +78,7 @@ namespace bachelor {
         }
         void skip_next () {
             check_next_ptr();
+            bzero(next, image_size);
             next += image_size;
             ++cnt;
         }
@@ -112,9 +113,6 @@ namespace bachelor {
                 }
                 tmp = stage2;
             }
-            if (conf.channels == 3 && conf.colorspace == RGB) {
-                cv::cvtColor(tmp, tmp, CV_RGB2BGR);
-            }
             if (tmp.depth() != conf.depth) {
                 tmp.convertTo(stage3, conf.depth);
                 tmp = stage3;
@@ -139,13 +137,21 @@ namespace bachelor {
                 throw 0;
             }
             if (conf.order == NHWC || conf.channels == 1) {
-                memcpy(next, image.ptr<char const>(0), image_size);
+                if (conf.channels == 3 && conf.colorspace == RGB) {
+                    cv::cvtColor(image, cv::Mat(image.size(), image.type(), next), CV_BGR2RGB);
+                }
+                else {
+                    memcpy(next, image.ptr<char const>(0), image_size);
+                }
                 next += image_size;
             }
             else {
                 // copy by channel
                 vector<cv::Mat> channels;
                 cv::split(image, channels);
+                if (conf.colorspace == RGB) {
+                    cv::swap(channels[0], channels[2]);
+                }
                 for (unsigned i = 0; i < channels.size(); ++i) {
                     memcpy(next, channels[i].ptr<char const>(0), channel_size);
                     next += channel_size;
